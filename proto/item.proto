@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package item.v1;
+
+option go_package = "lostfound/gen/itempb";
+
+// ItemService is owned by the Item microservice (Service B).
+// It manages lost-and-found items in its own database (item_db).
+service ItemService {
+  rpc CreateItem(CreateItemRequest) returns (Item);
+  rpc GetItem(GetItemRequest) returns (Item);
+  rpc UpdateItem(UpdateItemRequest) returns (Item);
+  rpc DeleteItem(DeleteItemRequest) returns (DeleteItemResponse);
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+}
+
+message Item {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string location_found = 4;
+  string status = 5; // FOUND | CLAIMED | RETURNED
+}
+
+message CreateItemRequest {
+  string name = 1;
+  string description = 2;
+  string location_found = 3;
+}
+
+message GetItemRequest {
+  int64 id = 1;
+}
+
+message UpdateItemRequest {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  string location_found = 4;
+  string status = 5;
+}
+
+message DeleteItemRequest {
+  int64 id = 1;
+}
+
+message DeleteItemResponse {
+  string message = 1;
+}
+
+message ListItemsRequest {}
+
+message ListItemsResponse {
+  repeated Item items = 1;
+}

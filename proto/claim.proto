@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package claim.v1;
+
+option go_package = "lostfound/gen/claimpb";
+
+// ClaimService is owned by the Claim microservice (Service A).
+// It manages claims in its own database (claim_db) and calls the
+// Item service over gRPC to verify that an item exists.
+service ClaimService {
+  rpc CreateClaim(CreateClaimRequest) returns (Claim);
+  rpc GetClaim(GetClaimRequest) returns (Claim);
+  rpc UpdateClaim(UpdateClaimRequest) returns (Claim);
+  rpc DeleteClaim(DeleteClaimRequest) returns (DeleteClaimResponse);
+  rpc ListClaims(ListClaimsRequest) returns (ListClaimsResponse);
+}
+
+message Claim {
+  int64 id = 1;
+  int64 item_id = 2;
+  string claimant_name = 3;
+  string claimant_email = 4;
+  string status = 5;    // PENDING | APPROVED | REJECTED
+  string item_name = 6; // not stored; filled in from the Item service on Create/Get
+}
+
+message CreateClaimRequest {
+  int64 item_id = 1;
+  string claimant_name = 2;
+  string claimant_email = 3;
+}
+
+message GetClaimRequest {
+  int64 id = 1;
+}
+
+message UpdateClaimRequest {
+  int64 id = 1;
+  string claimant_name = 2;
+  string claimant_email = 3;
+  string status = 4;
+}
+
+message DeleteClaimRequest {
+  int64 id = 1;
+}
+
+message DeleteClaimResponse {
+  string message = 1;
+}
+
+message ListClaimsRequest {}
+
+message ListClaimsResponse {
+  repeated Claim claims = 1;
+}

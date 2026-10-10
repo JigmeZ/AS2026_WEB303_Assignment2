@@ -1,0 +1,97 @@
+# Start everything with:  docker compose up --build
+# All ports and DB settings come from the .env file.
+
+services:
+  # ---------------- Databases (one per service) ----------------
+  item-db:
+    image: postgres:16-alpine
+    container_name: item-db
+    environment:
+      POSTGRES_DB: ${ITEM_DB_NAME}
+      POSTGRES_USER: ${ITEM_DB_USER}
+      POSTGRES_PASSWORD: ${ITEM_DB_PASSWORD}
+    volumes:
+      - item_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  claim-db:
+    image: postgres:16-alpine
+    container_name: claim-db
+    environment:
+      POSTGRES_DB: ${CLAIM_DB_NAME}
+      POSTGRES_USER: ${CLAIM_DB_USER}
+      POSTGRES_PASSWORD: ${CLAIM_DB_PASSWORD}
+    volumes:
+      - claim_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------- Service B: Item service ----------------
+  item-service:
+    build:
+      context: .
+      dockerfile: item-service/Dockerfile
+    container_name: item-service
+    environment:
+      PORT: ${ITEM_SERVICE_PORT}
+      DB_HOST: item-db
+      DB_PORT: 5432
+      DB_NAME: ${ITEM_DB_NAME}
+      DB_USER: ${ITEM_DB_USER}
+      DB_PASSWORD: ${ITEM_DB_PASSWORD}
+    depends_on:
+      item-db:
+        condition: service_healthy
+
+  # ---------------- Service A: Claim service ----------------
+  claim-service:
+    build:
+      context: .
+      dockerfile: claim-service/Dockerfile
+    container_name: claim-service
+    environment:
+      PORT: ${CLAIM_SERVICE_PORT}
+      DB_HOST: claim-db
+      DB_PORT: 5432
+      DB_NAME: ${CLAIM_DB_NAME}
+      DB_USER: ${CLAIM_DB_USER}
+      DB_PASSWORD: ${CLAIM_DB_PASSWORD}
+      ITEM_SERVICE_ADDR: item-service:${ITEM_SERVICE_PORT}
+      ITEM_CALL_TIMEOUT_MS: ${ITEM_CALL_TIMEOUT_MS}
+      ITEM_MAX_ATTEMPTS: ${ITEM_MAX_ATTEMPTS}
+      ITEM_BACKOFF_MS: ${ITEM_BACKOFF_MS}
+      CB_FAILURE_THRESHOLD: ${CB_FAILURE_THRESHOLD}
+      CB_OPEN_SECONDS: ${CB_OPEN_SECONDS}
+    depends_on:
+      claim-db:
+        condition: service_healthy
+      item-service:
+        condition: service_started
+
+  # ---------------- API Gateway (only published port) ----------------
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: gateway
+    environment:
+      PORT: ${GATEWAY_PORT}
+      ITEM_SERVICE_ADDR: item-service:${ITEM_SERVICE_PORT}
+      CLAIM_SERVICE_ADDR: claim-service:${CLAIM_SERVICE_PORT}
+      REQUEST_TIMEOUT_SECONDS: ${GATEWAY_TIMEOUT_SECONDS}
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    depends_on:
+      - item-service
+      - claim-service
+
+volumes:
+  item_db_data:
+  claim_db_data:
